@@ -5,18 +5,20 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.password.CompromisedPasswordChecker;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.provisioning.JdbcUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.password.HaveIBeenPwnedRestApiPasswordChecker;
+
+import javax.sql.DataSource;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
+// Optional annotation used in case you're app runs on normal spring app (not spring boot)
+//@EnableWebSecurity
 public class ProjectSecurityConfig {
 
     @Bean
@@ -24,16 +26,19 @@ public class ProjectSecurityConfig {
         // On the request we specify that any request shall be authenticated
         //http.authorizeHttpRequests((requests) -> requests.anyRequest().permitAll());
         //http.authorizeHttpRequests((requests) -> requests.anyRequest().authenticated());
-        http.authorizeHttpRequests(
+        http.csrf(AbstractHttpConfigurer::disable)
+                .authorizeHttpRequests(
                 (requests) -> requests
                         .requestMatchers(
                                 "/api/myAccount",
-                                "api/myBalance",
-                                "api/myLoans",
-                                "api/myCards"
+                                "/api/myBalance",
+                                "/api/myLoans",
+                                "/api/myCards"
                         ).authenticated()
                         .requestMatchers(
                                 "api/notices",
+                                // All the requests to the /api/users are permitted
+                                "/api/users/**",
                                 "api/contact",
                                 "/error" // Secured by default if not specified
                         ).permitAll()
@@ -49,23 +54,12 @@ public class ProjectSecurityConfig {
     }
 
     // In charge to manage the user accounts to help the AuthenticationManager
-    @Bean
-    public UserDetailsService userDetailsService() {
-        // The password is encoded with {noop} to indicate that the password is not encoded
-//        UserDetails user = User.withUsername("user").password("{noop}12345").authorities("read").build();
-        UserDetails user = User.withUsername("user")
-                .password("{noop}admin@1234.com")
-                .authorities("read")
-                .build();
+//    @Bean
+//    public UserDetailsService userDetailsService(DataSource dataSource) {
+//        // Inyect DataSource bean to the JdbcUserDetailsManager (Connection to the DB)
+//        return new JdbcUserDetailsManager(dataSource);
+//    }
 
-        UserDetails admin = User.withUsername("admin")
-                // The password is encoded with {bcrypt} to indicate that the password is encoded with bcrypt
-                .password("{bcrypt}$2a$12$y5YBopT5tAw2mmH6o1/PKuY9OTVF/Dg/MJytJW4wU7Z5Bqn6LNoje")
-                .authorities("admin")
-                .build();
-
-        return new InMemoryUserDetailsManager(user, admin);
-    }
     // Manage the password encoding hashing
     @Bean
     public PasswordEncoder passwordEncoder() {
